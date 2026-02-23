@@ -97,3 +97,23 @@ You will be asked to type the instance name to confirm deletion.
 - **`config.sh` is git-ignored** — it contains your GCP project ID and is never committed.
 - The firewall rule only opens TCP 22 (SSH) and restricts access to instances tagged `development`.
 - No passwords or service-account keys are stored in the repository.
+
+
+### Setup (once locally):
+1.  Make sure your local SSH agent is running and has your GitHub SSH key:
+    ```bash
+    eval "$(ssh-agent -s)"
+    ssh-add ~/.ssh/id_ed25519  # or path to your GitHub key
+    ```
+2.  Enable agent forwarding in your SSH config. Your VM connection will automatically use it if you add `ForwardAgent yes` to the specific host in `~/.ssh/config` after running `./connect.sh`.
+
+    Example `~/.ssh/config`:
+    ```ssh
+    Host vscode-dev1.us-east1-d.wazoo-vscode
+        HostName 34.123.45.67
+        IdentityFile ~/.ssh/google_compute_engine
+        User Wazoo
+        ForwardAgent yes
+    ```
+
+3.  Alternatively, in VS Code settings, ensure `Remote-SSH: Enable Agent Forwarding` is checked (it is by default).

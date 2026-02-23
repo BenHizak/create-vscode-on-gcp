@@ -1,60 +1,67 @@
 #!/usr/bin/env bash
-# create.sh — Provision a GCP VM with a T4 GPU for VSCode Remote SSH development.
-# Usage: ./create.sh
-
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── Load config ────────────────────────────────────────────────────────────────
 if [[ ! -f "$SCRIPT_DIR/config.sh" ]]; then
-  echo "ERROR: config.sh not found."
-  echo "       Copy config.sh.example to config.sh and fill in your values."
+  echo "ERROR: config.sh not found. Copy config.sh.example to config.sh and fill in your values."
   exit 1
 fi
-# shellcheck source=config.sh.example
 source "$SCRIPT_DIR/config.sh"
 
-echo "==> Project : $GCP_PROJECT"
-echo "==> Zone    : $GCP_ZONE"
-echo "==> Instance: $INSTANCE_NAME"
-echo ""
+echo "Project : $GCP_PROJECT"
+echo "Zone    : $GCP_ZONE"
+echo "Instance: $INSTANCE_NAME"
 
-# ── Firewall rule ──────────────────────────────────────────────────────────────
-if gcloud compute firewall-rules describe "$FIREWALL_RULE_NAME" \
-     --project="$GCP_PROJECT" &>/dev/null; then
-  echo "==> Firewall rule '$FIREWALL_RULE_NAME' already exists — skipping."
-else
-  echo "==> Creating firewall rule '$FIREWALL_RULE_NAME' (TCP 22, target-tag: development)..."
+# Firewall rule
+if ! gcloud compute firewall-rules describe "$FIREWALL_RULE_NAME" --project="$GCP_PROJECT" &>/dev/null; then
+  echo "Creating firewall rule '$FIREWALL_RULE_NAME'..."
   gcloud compute firewall-rules create "$FIREWALL_RULE_NAME" \
     --project="$GCP_PROJECT" \
     --direction=INGRESS \
     --action=ALLOW \
     --rules=tcp:22 \
     --target-tags=development \
-    --description="Allow SSH access to instances tagged 'development'"
-  echo "==> Firewall rule created."
+    --description="SSH access for development instances"
 fi
 
-# ── Create VM ──────────────────────────────────────────────────────────────────
-echo ""
-echo "==> Creating VM '$INSTANCE_NAME' (this may take a few minutes)..."
+# Create VM
+echo "Checking VM '$INSTANCE_NAME' presence..."
+if gcloud compute instances describe "$INSTANCE_NAME" \
+     --project="$GCP_PROJECT" \
+     --zone="$GCP_ZONE" &>/dev/null; then
+  echo "==> VM '$INSTANCE_NAME' already exists."
+  
+  # Ensure it is running
+  STATUS=$(gcloud compute instances describe "$INSTANCE_NAME" \
+    --project="$GCP_PROJECT" \
+    --zone="$GCP_ZONE" \
+    --format="value(status)")
+  
+  if [[ "$STATUS" != "RUNNING" ]]; then
+    echo "==> VM status is $STATUS. Starting it now..."
+    gcloud compute instances start "$INSTANCE_NAME" \
+      --project="$GCP_PROJECT" \
+      --zone="$GCP_ZONE"
+  else
+    echo "==> VM is already RUNNING."
+  fi
+else
+  echo "==> Creating VM '$INSTANCE_NAME'..."
+  gcloud compute instances create "$INSTANCE_NAME" \
+    --project="$GCP_PROJECT" \
+    --zone="$GCP_ZONE" \
+    --machine-type="$MACHINE_TYPE" \
+    --accelerator="type=nvidia-tesla-t4,count=1" \
+    --maintenance-policy=TERMINATE \
+    --restart-on-failure \
+    --image-family="$IMAGE_FAMILY" \
+    --image-project="$IMAGE_PROJECT" \
+    --boot-disk-size="$DISK_SIZE" \
+    --boot-disk-type="$DISK_TYPE" \
+    --tags=development \
+    --labels=environment=development \
+    --metadata=install-nvidia-driver=True
+fi
 
-gcloud compute instances create "$INSTANCE_NAME" \
-  --project="$GCP_PROJECT" \
-  --zone="$GCP_ZONE" \
-  --machine-type="$MACHINE_TYPE" \
-  --accelerator="type=nvidia-tesla-t4,count=1" \
-  --maintenance-policy=TERMINATE \
-  --restart-on-failure \
-  --image-family="$IMAGE_FAMILY" \
-  --image-project="$IMAGE_PROJECT" \
-  --boot-disk-size="$DISK_SIZE" \
-  --boot-disk-type="$DISK_TYPE" \
-  --tags=development \
-  --labels=environment=development \
-  --metadata=install-nvidia-driver=True
-
-echo ""
-echo "==> VM '$INSTANCE_NAME' is ready."
-echo "==> Run ./connect.sh to set up VSCode Remote SSH and connect."
+echo "Done. Run ./connect.sh to open VSCode."

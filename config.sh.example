@@ -1,21 +1,16 @@
 #!/usr/bin/env bash
-# Copy this file to config.sh and fill in your actual values.
-# config.sh is listed in .gitignore and must NEVER be committed.
+# Copy to config.sh and fill in your values.
+# config.sh is gitignored — never commit it.
 
-# ── GCP project & location ─────────────────────────────────────────────────────
-export GCP_PROJECT="your-gcp-project-id"        # gcloud projects list
-export GCP_REGION="us-east1"                     # prefer us-east1; change if T4 quota not available
-export GCP_ZONE="us-east1-d"                     # zones with T4: us-east1-d, us-central1-a, etc.
+export GCP_PROJECT="your-gcp-project-id"
+export GCP_ZONE="us-east1-d"          # T4 available: us-east1-d, us-central1-a, us-west1-b
 
-# ── VM configuration ───────────────────────────────────────────────────────────
 export INSTANCE_NAME="vscode-dev"
-export MACHINE_TYPE="n1-standard-4"              # n1-standard-{4,8,16} are common with T4
+export MACHINE_TYPE="n1-standard-4"
 export DISK_SIZE="100GB"
 export DISK_TYPE="pd-ssd"
 
-# Deep Learning VM image (pytorch 2.7, CUDA 12.8, Ubuntu 24.04, NVIDIA driver 570)
-export IMAGE_FAMILY="pytorch-2-7-cu128-ubuntu-2404"
+export IMAGE_FAMILY="pytorch-2-7-cu128-ubuntu-2404-nvidia-570"
 export IMAGE_PROJECT="deeplearning-platform-release"
 
-# ── Firewall ───────────────────────────────────────────────────────────────────
 export FIREWALL_RULE_NAME="allow-ssh-development"
