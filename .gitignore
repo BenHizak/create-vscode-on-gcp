@@ -1,0 +1,2 @@
+# Local config file contains sensitive values — never commit this
+config.sh
